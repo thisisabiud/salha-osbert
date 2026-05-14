@@ -10,7 +10,7 @@ const xlsx     = require('xlsx');
 const archiver = require('archiver');
 
 const app  = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3002;
 
 const DATA_FILE  = path.join(__dirname, 'data', 'rsvp.json');
 const VIDEOS_DIR = path.join(__dirname, 'data', 'videos');

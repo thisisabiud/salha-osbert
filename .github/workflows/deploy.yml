@@ -9,21 +9,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
 
-      - name: Set up SSH
+      - name: Set up SSH agent
         uses: webfactory/ssh-agent@v0.8.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Add SSH to known hosts
-        run: ssh-keyscan -H ${{ secrets.HOST }} >> ~/.ssh/known_hosts
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.HOST }} >> ~/.ssh/known_hosts
 
       - name: Test SSH connection and dependencies
         run: |
-          ssh root@${{ secrets.HOST }} "echo 'SSH connection successful'; which node || echo 'Node not found'; node --version || echo 'Node not installed'"
+          ssh -o StrictHostKeyChecking=yes root@${{ secrets.HOST }} \
+            "echo 'SSH connection successful'; which node || echo 'Node not found'; node --version || echo 'Node not installed'"
 
-      - name: Create deployment script
+      - name: Create deployment script (runner)
         run: |
           cat > deploy.sh << 'EOL'
           #!/bin/bash
@@ -48,19 +52,18 @@ jobs:
           chmod 755 "$APP_DIR"
           chown -R www-data:www-data "$APP_DIR"
 
-          # Node.js setup
           if ! command -v node &> /dev/null; then
             echo "Node.js not found. Installing Node.js 18.x..."
             curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
             apt-get install -y nodejs
           fi
 
-          NODE_BIN=$(command -v node)
+          NODE_BIN=$(command -v node || echo "/usr/bin/node")
           echo "Node found at: $NODE_BIN"
-          echo "Node version: $($NODE_BIN --version)"
+          echo "Node version: $($NODE_BIN --version || echo 'unknown')"
 
           cd "$APP_DIR"
-          npm ci --omit=dev
+          npm ci --omit=dev || echo "npm ci failed; ensure package-lock.json exists"
 
           mkdir -p data/videos
           chown -R www-data:www-data data
@@ -70,15 +73,13 @@ jobs:
             chown www-data:www-data data/rsvp.json
           fi
 
-          # Write .env
           cat > .env << EOF
           ADMIN_PASSWORD=${ADMIN_PASSWORD}
           ADMIN_TOKEN=${ADMIN_TOKEN}
-          PORT=3000
+          PORT=3002
           EOF
           chown www-data:www-data .env
 
-          # systemd service
           cat > /etc/systemd/system/${SERVICE}.service << EOF
           [Unit]
           Description=Salha & Osbert Wedding RSVP Server
@@ -109,11 +110,10 @@ jobs:
             echo "${SERVICE} service is running"
           else
             echo "Warning: ${SERVICE} service failed to start"
-            systemctl status ${SERVICE}
+            systemctl status ${SERVICE} || true
             exit 1
           fi
 
-          # nginx and SSL setup
           if ! command -v nginx &> /dev/null; then
             apt-get update -qq
             apt-get install -y nginx
@@ -134,7 +134,7 @@ jobs:
               proxy_send_timeout   300s;
 
               location / {
-                  proxy_pass         http://127.0.0.1:3000;
+                  proxy_pass         http://127.0.0.1:3002;
                   proxy_set_header   Host              \$host;
                   proxy_set_header   X-Real-IP         \$remote_addr;
                   proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
@@ -171,7 +171,7 @@ jobs:
               proxy_send_timeout   300s;
 
               location / {
-                  proxy_pass         http://127.0.0.1:3000;
+                  proxy_pass         http://127.0.0.1:3002;
                   proxy_set_header   Host              \$host;
                   proxy_set_header   X-Real-IP         \$remote_addr;
                   proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
@@ -195,10 +195,10 @@ jobs:
           ADMIN_EMAIL:    ${{ secrets.ADMIN_EMAIL }}
         run: |
           scp deploy.sh root@${{ secrets.HOST }}:/tmp/deploy.sh
-          ssh root@${{ secrets.HOST }} \\
-            "ADMIN_PASSWORD='$ADMIN_PASSWORD' \\
-             ADMIN_TOKEN='$ADMIN_TOKEN' \\
-             SERVER_NAME='$SERVER_NAME' \\
-             ADMIN_EMAIL='$ADMIN_EMAIL' \\
+          ssh root@${{ secrets.HOST }} \
+            "ADMIN_PASSWORD='$ADMIN_PASSWORD' \
+             ADMIN_TOKEN='$ADMIN_TOKEN' \
+             SERVER_NAME='$SERVER_NAME' \
+             ADMIN_EMAIL='$ADMIN_EMAIL' \
              bash /tmp/deploy.sh"
           ssh root@${{ secrets.HOST }} "rm /tmp/deploy.sh"
