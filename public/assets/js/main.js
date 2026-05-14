@@ -66,44 +66,58 @@ window.addEventListener('scroll',()=>{
   document.getElementById('backFromYes').addEventListener('click',()=>showOnly(choice));
   document.getElementById('backFromNo').addEventListener('click',()=>{cleanupRec();showOnly(choice);});
 
-  /* YES submit */
-  yesSubmit.addEventListener('click',async()=>{
-    const name=yesName.value.trim();
-    if(!name){shake(yesName);yesName.focus();return;}
-    await doSubmit({name,attending:true,videoId:null},yesSubmit);
+  /* ── YES submit ── */
+  yesSubmit.addEventListener('click', async () => {
+    const name = yesName.value.trim();
+    if (!name) { shake(yesName); yesName.focus(); return; }
+    const fd = new FormData();
+    fd.append('name', name);
+    fd.append('attending', 'true');
+    await doSubmit(fd, true, name);
   });
 
-  /* NO submit — auto-stops recording, waits for upload */
-  noSubmit.addEventListener('click',async()=>{
-    const name=noName.value.trim();
-    if(!name){shake(noName);noName.focus();return;}
+  /* ── NO submit — auto-stops recording, waits for upload ── */
+  noSubmit.addEventListener('click', async () => {
+    const name = noName.value.trim();
+    if (!name) { shake(noName); noName.focus(); return; }
 
-    if(isRecording){
-      setBtnLabel(noSubmit,'Finishing recording…');
-      noSubmit.disabled=true;
+    if (isRecording) {
+      setBtnLabel(noSubmit, 'Finishing recording…');
+      noSubmit.disabled = true;
       await stopRecAndWait();
     }
 
-    if(videoBlob && !videoId){
-      setBtnLabel(noSubmit,'Uploading video…');
-      noSubmit.disabled=true;
-      try{ videoId = await (uploadPromise||uploadVideo(videoBlob)); }
-      catch(e){ videoId=null; }
+    if (videoBlob && !videoId) {
+      setBtnLabel(noSubmit, 'Uploading video…');
+      noSubmit.disabled = true;
+      try { videoId = await (uploadPromise || uploadVideo(videoBlob)); }
+      catch (e) { videoId = null; }
     }
 
-    await doSubmit({name,attending:false,videoId},noSubmit);
+    const fd = new FormData();
+    fd.append('name', name);
+    fd.append('attending', 'false');
+    if (videoId) {
+      fd.append('videoId', videoId); // ← FormData so multer can read it
+    }
+    await doSubmit(fd, false, name);
   });
 
-  async function doSubmit(data,btn){
-    setBtnLabel(btn,'Sending…'); btn.disabled=true;
-    try{
-      const r=await fetch('/api/rsvp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
-      if(!r.ok) throw new Error();
-      showConfirm(data.name,data.attending);
-    }catch{
+  /* ── Core submit — uses FormData, NOT JSON ── */
+  async function doSubmit(fd, attending, name) {
+    const btn = attending ? yesSubmit : noSubmit;
+    setBtnLabel(btn, 'Sending…');
+    btn.disabled = true;
+    try {
+      // No Content-Type header — let the browser set multipart boundary
+      // so multer on the server correctly parses videoId
+      const r = await fetch('/api/rsvp', { method: 'POST', body: fd });
+      if (!r.ok) throw new Error();
+      showConfirm(name, attending);
+    } catch {
       alert('Something went wrong. Please try again.');
-      btn.disabled=false;
-      setBtnLabel(btn, data.attending?'Confirm Attendance':'Send My Regrets');
+      btn.disabled = false;
+      setBtnLabel(btn, attending ? 'Confirm Attendance' : 'Send My Regrets');
     }
   }
 
@@ -209,7 +223,7 @@ window.addEventListener('scroll',()=>{
       .find(t=>MediaRecorder.isTypeSupported(t))||'';
   }
 
-  function setBtnLabel(btn,label){ const s=btn.querySelector('span'); if(s) s.textContent=label; }
+  function setBtnLabel(btn,label){ const s=btn.querySelector('span'); if(s) s.textContent=label; else btn.textContent=label; }
   function shake(el){ el.style.animation='none'; el.offsetHeight; el.style.animation='shake 0.35s ease'; el.addEventListener('animationend',()=>{el.style.animation='';},{once:true}); }
   function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 

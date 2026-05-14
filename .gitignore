@@ -1,0 +1,34 @@
+# ── Node ────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── Data — never commit guest data or large video files ──
+data/rsvp.json
+data/videos/
+
+# Keep the folders themselves tracked (empty placeholder)
+!data/.gitkeep
+!data/videos/.gitkeep
+
+# ── Environment / secrets ────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── OS & editor junk ─────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# ── Logs ────────────────────────────────────────────
+logs/
+*.log
+
+# ── Build / misc ─────────────────────────────────────
+dist/
+.cache/
