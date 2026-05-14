@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Salha & Osbert — Admin Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:         #0d0a08;
+      --bg-mid:     #1a1208;
+      --warm:       #2e1f0e;
+      --gold:       #c9a84c;
+      --gold-light: #e6cc7e;
+      --gold-pale:  #f5e9c4;
+      --gold-dim:   rgba(201,168,76,.18);
+      --sand:       #d4c4a0;
+      --sand-dim:   rgba(212,196,160,.55);
+      --black:      #0b0905;
+      --red:        #c94c4c;
+      --green:      #4caa6a;
+    }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { font-size: 16px; scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--sand); font-family: 'Cormorant Garamond', serif; -webkit-font-smoothing: antialiased; min-height: 100vh; }
+
+    /* ── Login ── */
+    #loginScreen {
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 40px 20px;
+      background: radial-gradient(ellipse 70% 70% at 50% 40%, rgba(46,31,14,.75) 0%, var(--black) 100%);
+    }
+    .login-logo { font-family: 'Cinzel', serif; font-size: 13px; letter-spacing: 8px; color: var(--gold); margin-bottom: 8px; }
+    .login-sub  { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 15px; color: var(--sand); opacity: .45; margin-bottom: 48px; }
+    .login-box  { width: 100%; max-width: 360px; border: 1px solid var(--gold-dim); padding: 40px 32px; background: rgba(201,168,76,.025); }
+    .login-title { font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 5px; text-transform: uppercase; color: var(--gold); margin-bottom: 24px; text-align: center; }
+    .login-input {
+      width: 100%; background: rgba(201,168,76,.03); border: 1px solid rgba(201,168,76,.2);
+      border-bottom-color: rgba(201,168,76,.4); color: var(--sand);
+      padding: 14px 16px; font-family: 'Cormorant Garamond', serif; font-size: 16px;
+      outline: none; letter-spacing: 1px; -webkit-appearance: none;
+    }
+    .login-input:focus { border-color: rgba(201,168,76,.5); background: rgba(201,168,76,.05); }
+    .login-btn {
+      width: 100%; margin-top: 16px; padding: 15px; cursor: pointer;
+      font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 4px; text-transform: uppercase;
+      color: var(--black); background: var(--gold); border: 1px solid var(--gold); transition: background .3s;
+    }
+    .login-btn:hover { background: var(--gold-light); }
+    .login-error { margin-top: 14px; font-family: 'Cinzel', serif; font-size: 8px; letter-spacing: 2px; color: var(--red); text-align: center; min-height: 16px; }
+
+    /* ── Dashboard ── */
+    #dashboard { display: none; }
+
+    header.dash-header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(11,9,5,.96); backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--gold-dim);
+      padding: 16px 24px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    }
+    .dash-logo { font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 6px; color: var(--gold); }
+    .dash-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-family: 'Cinzel', serif; font-size: 8px; letter-spacing: 3px; text-transform: uppercase;
+      padding: 10px 18px 8px; border: 1px solid var(--gold-dim); color: var(--sand);
+      background: transparent; cursor: pointer; transition: color .3s, border-color .3s, background .3s;
+      white-space: nowrap;
+    }
+    .btn:hover { color: var(--gold); border-color: rgba(201,168,76,.5); }
+    .btn-gold  { color: var(--black); background: var(--gold); border-color: var(--gold); }
+    .btn-gold:hover { background: var(--gold-light); border-color: var(--gold-light); color: var(--black); }
+    .btn-green { border-color: rgba(76,170,106,.3); color: var(--green); }
+    .btn-green:hover { background: var(--green); color: var(--black); border-color: var(--green); }
+    .btn-danger { border-color: rgba(201,76,76,.25); color: var(--red); padding: 7px 12px 6px; font-size: 7px; letter-spacing: 2px; }
+    .btn-danger:hover { background: var(--red); color: #fff; border-color: var(--red); }
+    .btn:disabled { opacity: .35; pointer-events: none; }
+
+    .dash-main { padding: 32px 24px; max-width: 1280px; margin: 0 auto; }
+
+    /* ── Stats ── */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 36px; }
+    .stat-card {
+      border: 1px solid var(--gold-dim); padding: 24px 20px;
+      background: rgba(201,168,76,.02); position: relative; overflow: hidden;
+    }
+    .stat-card::after {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(to right, transparent, var(--gold), transparent);
+      opacity: 0; transition: opacity .4s;
+    }
+    .stat-card:hover::after { opacity: 1; }
+    .stat-label { font-family: 'Cinzel', serif; font-size: 7.5px; letter-spacing: 4px; text-transform: uppercase; color: var(--gold); opacity: .6; margin-bottom: 8px; }
+    .stat-num   { font-family: 'Cinzel', serif; font-size: 38px; font-weight: 700; color: var(--gold-light); line-height: 1; }
+    .stat-card--attending .stat-num { color: var(--green); }
+    .stat-card--declining .stat-num { color: var(--sand); opacity: .65; }
+
+    /* ── Tabs ── */
+    .tabs { display: flex; border-bottom: 1px solid var(--gold-dim); margin-bottom: 24px; }
+    .tab {
+      font-family: 'Cinzel', serif; font-size: 8px; letter-spacing: 4px; text-transform: uppercase;
+      padding: 12px 24px 10px; cursor: pointer; border-bottom: 2px solid transparent;
+      color: var(--sand); opacity: .45; transition: opacity .3s, border-color .3s, color .3s;
+      margin-bottom: -1px;
+    }
+    .tab.active { color: var(--gold); opacity: 1; border-bottom-color: var(--gold); }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* ── Search ── */
+    .search-wrap { position: relative; flex: 1; min-width: 180px; max-width: 320px; }
+    .search-icon {
+      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      color: var(--gold); opacity: .4; pointer-events: none;
+    }
+    .search-input {
+      width: 100%; background: rgba(201,168,76,.03); border: 1px solid var(--gold-dim);
+      color: var(--sand); padding: 9px 12px 8px 34px;
+      font-family: 'Cormorant Garamond', serif; font-size: 14px; letter-spacing: .5px;
+      outline: none; transition: border-color .3s, background .3s;
+    }
+    .search-input::placeholder { color: var(--sand); opacity: .25; font-style: italic; }
+    .search-input:focus { border-color: rgba(201,168,76,.45); background: rgba(201,168,76,.05); }
+
+    /* ── Toolbar ── */
+    .table-toolbar {
+      display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+      margin-bottom: 16px; padding: 14px 0; border-bottom: 1px solid var(--gold-dim);
+    }
+    .toolbar-label { font-family: 'Cinzel', serif; font-size: 8px; letter-spacing: 3px; color: var(--sand); opacity: .3; }
+    .select-count  { font-family: 'Cinzel', serif; font-size: 8px; letter-spacing: 2px; color: var(--gold); min-width: 72px; }
+
+    /* ── Table ── */
+    .rsvp-table { width: 100%; border-collapse: collapse; }
+    .rsvp-table th {
+      font-family: 'Cinzel', serif; font-size: 7.5px; letter-spacing: 4px; text-transform: uppercase;
+      color: var(--gold); opacity: .5; padding: 10px 14px; text-align: left;
+      border-bottom: 1px solid var(--gold-dim);
+    }
+    .rsvp-table td { padding: 13px 14px; border-bottom: 1px solid rgba(201,168,76,.05); vertical-align: middle; }
+    .rsvp-table tr:hover td { background: rgba(201,168,76,.025); }
+    .rsvp-table tr:last-child td { border-bottom: none; }
+
+    .td-name  { font-family: 'Cinzel', serif; font-size: 12px; letter-spacing: 1px; color: var(--sand); }
+    .td-email { font-family: 'Cormorant Garamond', serif; font-size: 14px; color: var(--sand); opacity: .5; }
+    .td-date  { font-family: 'Cormorant Garamond', serif; font-size: 12px; color: var(--sand); opacity: .35; white-space: nowrap; }
+    .td-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-family: 'Cinzel', serif; font-size: 7px; letter-spacing: 2px; text-transform: uppercase;
+      padding: 4px 10px 3px; border: 1px solid;
+    }
+    .td-badge--yes   { color: var(--green); border-color: rgba(76,170,106,.3); }
+    .td-badge--no    { color: var(--sand);  border-color: var(--gold-dim); opacity: .55; }
+    .td-badge--video { color: var(--gold);  border-color: var(--gold-dim); }
+
+    /* ── Checkbox ── */
+    .chk { width: 16px; height: 16px; cursor: pointer; accent-color: var(--gold); }
+
+    /* ── Pagination ── */
+    .pagination {
+      display: none; align-items: center; justify-content: center; gap: 16px;
+      padding: 20px 0 8px; border-top: 1px solid var(--gold-dim); margin-top: 4px;
+    }
+    .pagination.visible { display: flex; }
+    .pg-info {
+      font-family: 'Cinzel', serif; font-size: 7.5px; letter-spacing: 3px; text-transform: uppercase;
+      color: var(--sand); opacity: .45; white-space: nowrap; min-width: 180px; text-align: center;
+    }
+    .btn-pg {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-family: 'Cinzel', serif; font-size: 7.5px; letter-spacing: 3px; text-transform: uppercase;
+      padding: 9px 16px 7px; border: 1px solid var(--gold-dim); color: var(--sand);
+      background: transparent; cursor: pointer; transition: color .25s, border-color .25s;
+      white-space: nowrap;
+    }
+    .btn-pg:hover:not(:disabled) { color: var(--gold); border-color: rgba(201,168,76,.5); }
+    .btn-pg:disabled { opacity: .25; cursor: default; }
+
+    /* ── Confirm Delete ── */
+    #confirmDialog {
+      display: none; position: fixed; inset: 0; z-index: 600;
+      background: rgba(0,0,0,.82); backdrop-filter: blur(6px);
+      align-items: center; justify-content: center;
+    }
+    #confirmDialog.open { display: flex; }
+    .confirm-box {
+      background: var(--bg-mid); border: 1px solid rgba(201,76,76,.3);
+      padding: 36px 32px 28px; max-width: 360px; width: 90%; text-align: center;
+    }
+    .confirm-icon { font-size: 28px; margin-bottom: 12px; }
+    .confirm-title { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 4px; text-transform: uppercase; color: var(--red); margin-bottom: 14px; }
+    .confirm-msg   { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 15px; color: var(--sand); opacity: .7; margin-bottom: 8px; line-height: 1.7; }
+    .confirm-name  { font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 2px; color: var(--gold-light); font-style: normal; }
+    .confirm-warn  { font-family: 'Cinzel', serif; font-size: 7.5px; letter-spacing: 2px; text-transform: uppercase; color: var(--sand); opacity: .35; margin-bottom: 24px; }
+    .confirm-actions { display: flex; gap: 10px; justify-content: center; }
+    .btn-confirm-del {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-family: 'Cinzel', serif; font-size: 8px; letter-spacing: 3px; text-transform: uppercase;
+      padding: 11px 20px 9px; border: 1px solid var(--red); color: #fff;
+      background: var(--red); cursor: pointer; transition: background .25s;
+    }
+    .btn-confirm-del:hover { background: #a53a3a; }
+
+    /* ── Video Modal ── */
+    #videoModal {
+      display: none; position: fixed; inset: 0; z-index: 500;
+      background: rgba(0,0,0,.88); backdrop-filter: blur(6px);
+      align-items: center; justify-content: center;
+    }
+    #videoModal.open { display: flex; }
+    .modal-inner {
+      background: var(--bg-mid); border: 1px solid var(--gold-dim);
+      padding: 28px; max-width: 640px; width: 90%; position: relative;
+    }
+    .modal-title { font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 4px; color: var(--gold); margin-bottom: 16px; text-transform: uppercase; }
+    .modal-video { width: 100%; max-height: 400px; background: #000; display: block; }
+    .modal-close { position: absolute; top: 14px; right: 16px; font-family: 'Cinzel', serif; font-size: 8px; letter-spacing: 3px; color: var(--sand); opacity: .45; cursor: pointer; background: none; border: none; transition: opacity .2s; }
+    .modal-close:hover { opacity: 1; }
+    .modal-footer { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
+
+    .empty-state { text-align: center; padding: 60px 20px; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 17px; color: var(--sand); opacity: .3; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      font-family: 'Cinzel', serif; font-size: 8px; letter-spacing: 3px; text-transform: uppercase;
+      padding: 12px 24px 10px; border: 1px solid var(--gold-dim);
+      background: rgba(11,9,5,.96); color: var(--gold);
+      backdrop-filter: blur(12px); z-index: 9999;
+      opacity: 0; transition: opacity .4s; pointer-events: none; white-space: nowrap;
+    }
+    #toast.show { opacity: 1; }
+
+    /* ── Spinner ── */
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(201,168,76,.2); border-top-color: var(--gold); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-row td { text-align: center; padding: 40px; }
+
+    @media (max-width: 640px) {
+      .dash-main { padding: 20px 14px; }
+      .rsvp-table th:nth-child(3), .rsvp-table td:nth-child(3) { display: none; }
+      .search-wrap { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ Login ══ -->
+<div id="loginScreen">
+  <div class="login-logo">S · O</div>
+  <div class="login-sub">Administration Portal</div>
+  <div class="login-box">
+    <div class="login-title">Admin Login</div>
+    <input class="login-input" type="password" id="loginPass" placeholder="Enter password" autocomplete="current-password">
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">Enter</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- ══ Dashboard ══ -->
+<div id="dashboard">
+  <header class="dash-header">
+    <div class="dash-logo">Salha &amp; Osbert — Admin</div>
+    <div class="dash-actions">
+      <button class="btn btn-green" onclick="exportExcel()">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="2" width="11" height="9" rx="1" stroke="currentColor" stroke-width="1.1"/><path d="M4 2V1M9 2V1M1 5h11" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+        Export Excel
+      </button>
+      <button class="btn btn-gold" id="btnDlAll" onclick="downloadAllVideos()">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v8M3 6.5l3.5 3.5 3.5-3.5M1 11h11" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        All Videos
+      </button>
+      <button class="btn" onclick="doLogout()">Log Out</button>
+    </div>
+  </header>
+
+  <main class="dash-main">
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Total RSVPs</div><div class="stat-num" id="statTotal">—</div></div>
+      <div class="stat-card stat-card--attending"><div class="stat-label">Attending</div><div class="stat-num" id="statAttending">—</div></div>
+      <div class="stat-card stat-card--declining"><div class="stat-label">Not Attending</div><div class="stat-num" id="statDeclining">—</div></div>
+      <div class="stat-card"><div class="stat-label">Video Messages</div><div class="stat-num" id="statVideos">—</div></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" data-tab="attending" onclick="switchTab('attending')">Attendees</div>
+      <div class="tab" data-tab="declining" onclick="switchTab('declining')">Not Attending</div>
+    </div>
+
+    <!-- Attendees tab -->
+    <div class="tab-pane active" id="tab-attending">
+      <div class="table-toolbar">
+        <div class="search-wrap">
+          <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/>
+            <path d="M9.5 9.5L13 13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+          <input class="search-input" id="searchAttending" placeholder="Search by name or email…" oninput="filterTable('attending')">
+        </div>
+        <button class="btn btn-green" onclick="refreshData()">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 6a5 5 0 1 0 5-5 5 5 0 0 0-4.5 2.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><path d="M1 1v4h4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Refresh
+        </button>
+      </div>
+      <table class="rsvp-table" id="tableAttending">
+        <thead>
+          <tr>
+            <th style="width:44px">#</th>
+            <th>Full Name</th>
+            <th>Email</th>
+            <th>Date</th>
+            <th>Status</th>
+            <th style="width:100px">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="bodyAttending">
+          <tr class="loading-row"><td colspan="6"><div class="spinner"></div></td></tr>
+        </tbody>
+      </table>
+      <div class="pagination" id="pagination-attending">
+        <button class="btn-pg" id="pgPrev-attending" onclick="changePage('attending',-1)">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M7 1L3 5l4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Prev
+        </button>
+        <span class="pg-info" id="pgInfo-attending"></span>
+        <button class="btn-pg" id="pgNext-attending" onclick="changePage('attending',1)">
+          Next
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 1l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Not Attending tab -->
+    <div class="tab-pane" id="tab-declining">
+      <div class="table-toolbar">
+        <div class="search-wrap">
+          <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/>
+            <path d="M9.5 9.5L13 13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+          <input class="search-input" id="searchDeclining" placeholder="Search by name…" oninput="filterTable('declining')">
+        </div>
+        <span class="toolbar-label">Videos:</span>
+        <span class="select-count" id="selectedCount">0 selected</span>
+        <button class="btn" id="btnSelectAll" onclick="toggleSelectAll()">Select All</button>
+        <button class="btn btn-gold" id="btnDlSelected" onclick="downloadSelectedVideos()" disabled>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M3 5.5L6 9l3-3.5M1 11h10" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Download Selected
+        </button>
+        <button class="btn btn-green" onclick="refreshData()">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 6a5 5 0 1 0 5-5 5 5 0 0 0-4.5 2.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><path d="M1 1v4h4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Refresh
+        </button>
+      </div>
+      <table class="rsvp-table" id="tableDeclining">
+        <thead>
+          <tr>
+            <th style="width:36px"><input type="checkbox" class="chk" id="masterChk" onchange="masterToggle(this)"></th>
+            <th>Full Name</th>
+            <th>Date</th>
+            <th>Video</th>
+            <th>Preview</th>
+            <th>Download</th>
+            <th style="width:100px">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="bodyDeclining">
+          <tr class="loading-row"><td colspan="7"><div class="spinner"></div></td></tr>
+        </tbody>
+      </table>
+      <div class="pagination" id="pagination-declining">
+        <button class="btn-pg" id="pgPrev-declining" onclick="changePage('declining',-1)">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M7 1L3 5l4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Prev
+        </button>
+        <span class="pg-info" id="pgInfo-declining"></span>
+        <button class="btn-pg" id="pgNext-declining" onclick="changePage('declining',1)">
+          Next
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 1l4 4-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ══ Video Preview Modal ══ -->
+<div id="videoModal">
+  <div class="modal-inner">
+    <button class="modal-close" onclick="closeModal()">✕ Close</button>
+    <div class="modal-title" id="modalTitle">Video Message</div>
+    <video class="modal-video" id="modalVideo" controls playsinline></video>
+    <div class="modal-footer">
+      <button class="btn btn-gold" id="modalDlBtn" onclick="modalDownload()">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M3 5.5L6 9l3-3.5M1 11h10" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Download
+      </button>
+      <button class="btn" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Confirm Delete ══ -->
+<div id="confirmDialog">
+  <div class="confirm-box">
+    <div class="confirm-icon">⚠</div>
+    <div class="confirm-title">Confirm Deletion</div>
+    <p class="confirm-msg">Remove the RSVP entry for<br><span class="confirm-name" id="confirmName"></span>?</p>
+    <p class="confirm-warn">This cannot be undone. Any attached video will also be deleted.</p>
+    <div class="confirm-actions">
+      <button class="btn-confirm-del" onclick="confirmDelete()">
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 3h7M4 3V2h3v1M4.5 5v3M6.5 5v3M2.5 3l.5 6h5l.5-6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Yes, Delete
+      </button>
+      <button class="btn" onclick="closeConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+const PAGE_SIZE = 15;
+const STORAGE_KEY = 'so_admin_token';
+
+let TOKEN    = localStorage.getItem(STORAGE_KEY) || '';
+let allRsvps = [];
+let modalFile = ''; let modalName = '';
+let pendingDeleteId = null;
+
+const pgState = {
+  attending: { page: 1, query: '' },
+  declining: { page: 1, query: '' }
+};
+
+/* ── Auth ── */
+function doLogin() {
+  const pass = document.getElementById('loginPass').value;
+  const err  = document.getElementById('loginError');
+  const btn  = document.getElementById('loginBtn');
+  btn.disabled = true; btn.textContent = '…';
+  fetch('/admin/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: pass })
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.success) {
+      TOKEN = d.token;
+      localStorage.setItem(STORAGE_KEY, TOKEN);
+      showDashboard();
+    } else {
+      err.textContent = 'Incorrect password.';
+      btn.disabled = false; btn.textContent = 'Enter';
+    }
+  })
+  .catch(() => { err.textContent = 'Connection error.'; btn.disabled = false; btn.textContent = 'Enter'; });
+}
+
+document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+function doLogout() {
+  TOKEN = ''; localStorage.removeItem(STORAGE_KEY);
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginPass').value = '';
+}
+
+function showDashboard() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  loadData();
+}
+
+/* Auto-login if token stored */
+if (TOKEN) {
+  fetch('/admin/api/rsvps', { headers: { Authorization: 'Bearer ' + TOKEN } })
+    .then(r => { if (r.ok) showDashboard(); else { TOKEN = ''; localStorage.removeItem(STORAGE_KEY); } })
+    .catch(() => {});
+}
+
+/* ── Data ── */
+function loadData() {
+  fetch('/admin/api/rsvps', { headers: { Authorization: 'Bearer ' + TOKEN } })
+    .then(r => { if (!r.ok) throw new Error('Unauthorised'); return r.json(); })
+    .then(data => { allRsvps = data; renderStats(); renderTables(); })
+    .catch(err => { if (err.message === 'Unauthorised') doLogout(); else toast('Failed to load data.'); });
+}
+
+function refreshData() { loadData(); toast('Refreshed'); }
+
+/* ── Stats ── */
+function renderStats() {
+  const videos = allRsvps.filter(r => r.videoFile);
+  document.getElementById('statTotal').textContent     = allRsvps.length;
+  document.getElementById('statAttending').textContent = allRsvps.filter(r => r.attending).length;
+  document.getElementById('statDeclining').textContent = allRsvps.filter(r => !r.attending).length;
+  document.getElementById('statVideos').textContent    = videos.length;
+  document.getElementById('btnDlAll').disabled = videos.length === 0;
+}
+
+function fmtDate(iso) {
+  return new Date(iso).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+function renderTables() {
+  renderTable('attending');
+  renderTable('declining');
+}
+
+function renderTable(tab) {
+  const s       = pgState[tab];
+  const isAtt   = tab === 'attending';
+  const colspan = isAtt ? 6 : 7;
+  const data    = allRsvps.filter(r => isAtt ? r.attending : !r.attending);
+
+  const filtered = s.query
+    ? data.filter(r => (r.name + ' ' + (r.email || '')).toLowerCase().includes(s.query))
+    : data;
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  s.page = Math.max(1, Math.min(s.page, totalPages));
+
+  const offset = (s.page - 1) * PAGE_SIZE;
+  const slice  = filtered.slice(offset, offset + PAGE_SIZE);
+  const bodyEl = document.getElementById(isAtt ? 'bodyAttending' : 'bodyDeclining');
+
+  if (!filtered.length) {
+    const msg = s.query ? 'No results match your search.' : (isAtt ? 'No attendees yet.' : 'No regrets submitted yet.');
+    bodyEl.innerHTML = `<tr><td colspan="${colspan}"><div class="empty-state">${msg}</div></td></tr>`;
+  } else if (isAtt) {
+    bodyEl.innerHTML = slice.map((r, i) => `
+      <tr>
+        <td class="td-date">${offset + i + 1}</td>
+        <td class="td-name">${esc(r.name)}</td>
+        <td class="td-email">${esc(r.email || '—')}</td>
+        <td class="td-date">${fmtDate(r.submittedAt)}</td>
+        <td><span class="td-badge td-badge--yes">✦ Attending</span></td>
+        <td>
+          <button class="btn btn-danger" onclick="promptDelete('${esc(r.id)}','${esc(r.name).replace(/'/g,"\\'")}')">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3h6M4 3V2h2v1M4.5 5v3M5.5 5v3M3 3l.5 5h3L7 3" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Delete
+          </button>
+        </td>
+      </tr>`).join('');
+  } else {
+    bodyEl.innerHTML = slice.map(r => `
+      <tr>
+        <td>
+          ${r.videoFile
+            ? `<input type="checkbox" class="chk video-chk" data-file="${esc(r.videoFile)}" data-name="${esc(r.name)}" onchange="updateSelection()">`
+            : ''}
+        </td>
+        <td class="td-name">${esc(r.name)}</td>
+        <td class="td-date">${fmtDate(r.submittedAt)}</td>
+        <td>
+          ${r.videoFile
+            ? '<span class="td-badge td-badge--video">▶ Has Video</span>'
+            : '<span class="td-badge td-badge--no">No Video</span>'}
+        </td>
+        <td>
+          ${r.videoFile
+            ? `<button class="btn" onclick="openPreview('${esc(r.videoFile)}','${esc(r.name).replace(/'/g,"\\'")}')">
+                 <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><polygon points="2,1 10,5.5 2,10" fill="currentColor"/></svg>
+                 Preview
+               </button>`
+            : '—'}
+        </td>
+        <td>
+          ${r.videoFile
+            ? `<button class="btn btn-gold" onclick="downloadVideo('${esc(r.videoFile)}','${esc(r.name).replace(/'/g,"\\'")}')">
+                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M3 5.5L6 9l3-3.5M1 11h10" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                 Download
+               </button>`
+            : '—'}
+        </td>
+        <td>
+          <button class="btn btn-danger" onclick="promptDelete('${esc(r.id)}','${esc(r.name).replace(/'/g,"\\'")}')">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3h6M4 3V2h2v1M4.5 5v3M5.5 5v3M3 3l.5 5h3L7 3" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Delete
+          </button>
+        </td>
+      </tr>`).join('');
+  }
+
+  const pgEl   = document.getElementById('pagination-' + tab);
+  const pgInfo = document.getElementById('pgInfo-' + tab);
+  const pgPrev = document.getElementById('pgPrev-' + tab);
+  const pgNext = document.getElementById('pgNext-' + tab);
+
+  if (filtered.length > PAGE_SIZE) {
+    pgEl.classList.add('visible');
+    pgInfo.textContent = `Page ${s.page} of ${totalPages}  ·  ${filtered.length} entries`;
+    pgPrev.disabled = s.page <= 1;
+    pgNext.disabled = s.page >= totalPages;
+  } else {
+    pgEl.classList.remove('visible');
+  }
+
+  if (!isAtt) updateSelection();
+}
+
+function changePage(tab, delta) {
+  pgState[tab].page += delta;
+  renderTable(tab);
+  const tableId = tab === 'attending' ? 'tableAttending' : 'tableDeclining';
+  document.getElementById(tableId).scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function filterTable(tab) {
+  const inputId = tab === 'attending' ? 'searchAttending' : 'searchDeclining';
+  pgState[tab].query = document.getElementById(inputId).value.toLowerCase().trim();
+  pgState[tab].page  = 1;
+  renderTable(tab);
+}
+
+/* ── Checkbox selection ── */
+function updateSelection() {
+  const all     = document.querySelectorAll('.video-chk');
+  const checked = document.querySelectorAll('.video-chk:checked');
+  document.getElementById('selectedCount').textContent = checked.length + ' selected';
+  document.getElementById('btnDlSelected').disabled = checked.length === 0;
+  const master = document.getElementById('masterChk');
+  if (master) {
+    master.checked       = all.length > 0 && Array.from(all).every(b => b.checked);
+    master.indeterminate = checked.length > 0 && !master.checked;
+  }
+}
+
+function masterToggle(master) {
+  document.querySelectorAll('.video-chk').forEach(b => { b.checked = master.checked; });
+  updateSelection();
+}
+
+function toggleSelectAll() {
+  const boxes = Array.from(document.querySelectorAll('.video-chk'));
+  const allOn = boxes.every(b => b.checked);
+  boxes.forEach(b => { b.checked = !allOn; });
+  updateSelection();
+  document.getElementById('btnSelectAll').textContent = allOn ? 'Select All' : 'Deselect All';
+}
+
+/* ── Delete ── */
+function promptDelete(id, name) {
+  pendingDeleteId = id;
+  document.getElementById('confirmName').textContent = name;
+  document.getElementById('confirmDialog').classList.add('open');
+}
+
+function closeConfirm() {
+  pendingDeleteId = null;
+  document.getElementById('confirmDialog').classList.remove('open');
+}
+
+function confirmDelete() {
+  const id = pendingDeleteId;
+  if (!id) return;
+  closeConfirm();
+  fetch('/admin/api/rsvp/' + encodeURIComponent(id), {
+    method: 'DELETE',
+    headers: { Authorization: 'Bearer ' + TOKEN }
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.success) {
+      allRsvps = allRsvps.filter(r => r.id !== id);
+      renderStats(); renderTables();
+      toast('Entry deleted');
+    } else {
+      toast('Delete failed: ' + (d.error || 'Unknown error'));
+    }
+  })
+  .catch(() => toast('Delete request failed'));
+}
+
+document.getElementById('confirmDialog').addEventListener('click', e => {
+  if (e.target === document.getElementById('confirmDialog')) closeConfirm();
+});
+
+/* ── Video preview modal ── */
+function openPreview(filename, name) {
+  modalFile = filename; modalName = name;
+  document.getElementById('modalTitle').textContent = name + ' — Video Message';
+  const vid = document.getElementById('modalVideo');
+  vid.src = ''; vid.innerHTML = '';
+  fetch('/admin/api/video/' + encodeURIComponent(filename), { headers: { Authorization: 'Bearer ' + TOKEN } })
+    .then(r => { if (!r.ok) throw new Error(); return r.blob(); })
+    .then(blob => {
+      const src = document.createElement('source');
+      src.src  = URL.createObjectURL(blob);
+      src.type = blob.type || 'video/webm';
+      vid.appendChild(src);
+      vid.load();
+      document.getElementById('videoModal').classList.add('open');
+    })
+    .catch(() => toast('Could not load video preview.'));
+}
+
+function closeModal() {
+  document.getElementById('videoModal').classList.remove('open');
+  const vid = document.getElementById('modalVideo');
+  vid.pause(); vid.src = ''; vid.innerHTML = '';
+}
+
+function modalDownload() { downloadVideo(modalFile, modalName); }
+
+document.getElementById('videoModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('videoModal')) closeModal();
+});
+
+/* ── Downloads ── */
+function downloadVideo(filename, name) {
+  toast('Preparing download…');
+  fetch('/admin/api/video/' + encodeURIComponent(filename), { headers: { Authorization: 'Bearer ' + TOKEN } })
+    .then(r => { if (!r.ok) throw new Error(); return r.blob(); })
+    .then(blob => {
+      const ext = blob.type.includes('mp4') ? '.mp4' : blob.type.includes('ogg') ? '.ogg' : '.webm';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = name.replace(/[^a-z0-9]/gi, '_') + '_message' + ext;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 8000);
+      toast('Downloading: ' + name);
+    })
+    .catch(() => toast('Download failed.'));
+}
+
+function downloadSelectedVideos() {
+  const filenames = Array.from(document.querySelectorAll('.video-chk:checked')).map(b => b.dataset.file);
+  if (!filenames.length) return;
+  toast('Preparing ' + filenames.length + ' video(s)…');
+  fetch('/admin/api/download-videos', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filenames })
+  })
+  .then(r => { if (!r.ok) throw new Error(); return r.blob(); })
+  .then(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = 'SalhaOsbert_Selected_Videos.zip'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 15000);
+    toast('Downloaded ' + filenames.length + ' video(s)');
+  })
+  .catch(() => toast('Download failed.'));
+}
+
+function downloadAllVideos() {
+  const count = allRsvps.filter(r => r.videoFile).length;
+  if (!count) { toast('No videos yet.'); return; }
+  toast('Zipping all ' + count + ' video(s)…');
+  fetch('/admin/api/download-all-videos', { headers: { Authorization: 'Bearer ' + TOKEN } })
+  .then(r => { if (!r.ok) throw new Error(); return r.blob(); })
+  .then(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = 'SalhaOsbert_All_Videos.zip'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    toast('All videos downloaded!');
+  })
+  .catch(() => toast('Download failed.'));
+}
+
+function exportExcel() {
+  toast('Generating report…');
+  fetch('/admin/api/export', { headers: { Authorization: 'Bearer ' + TOKEN } })
+  .then(r => { if (!r.ok) throw new Error(); return r.blob(); })
+  .then(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = 'SalhaOsbert_RSVP_Report.xlsx'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    toast('Excel exported!');
+  })
+  .catch(() => toast('Export failed.'));
+}
+
+/* ── Tabs ── */
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
+}
+
+/* ── Toast ── */
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+}
+
+/* ── Escape HTML ── */
+function esc(s) {
+  if (!s) return '';
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+</script>
+</body>
+</html>

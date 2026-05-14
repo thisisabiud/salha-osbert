@@ -1,0 +1,204 @@
+name: Deploy Salha & Osbert Wedding Site
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add SSH to known hosts
+        run: ssh-keyscan -H ${{ secrets.HOST }} >> ~/.ssh/known_hosts
+
+      - name: Test SSH connection and dependencies
+        run: |
+          ssh root@${{ secrets.HOST }} "echo 'SSH connection successful'; which node || echo 'Node not found'; node --version || echo 'Node not installed'"
+
+      - name: Create deployment script
+        run: |
+          cat > deploy.sh << 'EOL'
+          #!/bin/bash
+          set -e
+
+          echo "Starting deployment as $(whoami)"
+          echo "PATH: $PATH"
+
+          APP_DIR="/home/salha-osbert"
+          SERVICE="salha-osbert"
+
+          mkdir -p "$APP_DIR"
+
+          git config --global --add safe.directory "$APP_DIR"
+          if [ -d "$APP_DIR/.git" ]; then
+            cd "$APP_DIR" && git pull
+          else
+            git clone git@github.com:${{ github.repository }}.git "$APP_DIR"
+            cd "$APP_DIR"
+          fi
+
+          chmod 755 "$APP_DIR"
+          chown -R www-data:www-data "$APP_DIR"
+
+          # Node.js setup
+          if ! command -v node &> /dev/null; then
+            echo "Node.js not found. Installing Node.js 18.x..."
+            curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+            apt-get install -y nodejs
+          fi
+
+          NODE_BIN=$(command -v node)
+          echo "Node found at: $NODE_BIN"
+          echo "Node version: $($NODE_BIN --version)"
+
+          cd "$APP_DIR"
+          npm ci --omit=dev
+
+          mkdir -p data/videos
+          chown -R www-data:www-data data
+
+          if [ ! -f data/rsvp.json ]; then
+            echo '{"rsvps":[]}' > data/rsvp.json
+            chown www-data:www-data data/rsvp.json
+          fi
+
+          # Write .env
+          cat > .env << EOF
+          ADMIN_PASSWORD=${ADMIN_PASSWORD}
+          ADMIN_TOKEN=${ADMIN_TOKEN}
+          PORT=3000
+          EOF
+          chown www-data:www-data .env
+
+          # systemd service
+          cat > /etc/systemd/system/${SERVICE}.service << EOF
+          [Unit]
+          Description=Salha & Osbert Wedding RSVP Server
+          After=network.target
+
+          [Service]
+          User=www-data
+          Group=www-data
+          WorkingDirectory=${APP_DIR}
+          EnvironmentFile=${APP_DIR}/.env
+          ExecStart=${NODE_BIN} ${APP_DIR}/server.js
+          Restart=always
+          RestartSec=5
+          StandardOutput=journal
+          StandardError=journal
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+
+          systemctl daemon-reload
+          systemctl restart ${SERVICE} || systemctl start ${SERVICE}
+          systemctl enable ${SERVICE}
+
+          sleep 3
+
+          if systemctl is-active --quiet ${SERVICE}; then
+            echo "${SERVICE} service is running"
+          else
+            echo "Warning: ${SERVICE} service failed to start"
+            systemctl status ${SERVICE}
+            exit 1
+          fi
+
+          # nginx and SSL setup
+          if ! command -v nginx &> /dev/null; then
+            apt-get update -qq
+            apt-get install -y nginx
+          fi
+
+          if [ ! -d "/etc/letsencrypt/live/${SERVER_NAME}" ]; then
+            apt-get update -qq
+            apt-get install -y certbot python3-certbot-nginx
+
+            cat > /etc/nginx/sites-available/${SERVER_NAME} << EOF
+          server {
+              listen 80;
+              server_name ${SERVER_NAME};
+
+              client_max_body_size 150M;
+              client_body_timeout  300s;
+              proxy_read_timeout   300s;
+              proxy_send_timeout   300s;
+
+              location / {
+                  proxy_pass         http://127.0.0.1:3000;
+                  proxy_set_header   Host              \$host;
+                  proxy_set_header   X-Real-IP         \$remote_addr;
+                  proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
+                  proxy_set_header   X-Forwarded-Proto \$scheme;
+                  proxy_request_buffering off;
+              }
+          }
+          EOF
+            ln -sf /etc/nginx/sites-available/${SERVER_NAME} /etc/nginx/sites-enabled/
+            nginx -t && systemctl reload nginx
+
+            certbot --nginx -d ${SERVER_NAME} --non-interactive --agree-tos -m ${ADMIN_EMAIL} --redirect
+          fi
+
+          cat > /etc/nginx/sites-available/${SERVER_NAME} << EOF
+          server {
+              listen 80;
+              server_name ${SERVER_NAME};
+              return 301 https://\$host\$request_uri;
+          }
+
+          server {
+              listen 443 ssl;
+              server_name ${SERVER_NAME};
+
+              ssl_certificate     /etc/letsencrypt/live/${SERVER_NAME}/fullchain.pem;
+              ssl_certificate_key /etc/letsencrypt/live/${SERVER_NAME}/privkey.pem;
+              include             /etc/letsencrypt/options-ssl-nginx.conf;
+              ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
+
+              client_max_body_size 150M;
+              client_body_timeout  300s;
+              proxy_read_timeout   300s;
+              proxy_send_timeout   300s;
+
+              location / {
+                  proxy_pass         http://127.0.0.1:3000;
+                  proxy_set_header   Host              \$host;
+                  proxy_set_header   X-Real-IP         \$remote_addr;
+                  proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
+                  proxy_set_header   X-Forwarded-Proto \$scheme;
+                  proxy_http_version 1.1;
+                  proxy_request_buffering off;
+              }
+          }
+          EOF
+
+          nginx -t && systemctl reload nginx
+          echo "✅ Deployment complete!"
+          EOL
+          chmod +x deploy.sh
+
+      - name: Deploy to server
+        env:
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          ADMIN_TOKEN:    ${{ secrets.ADMIN_TOKEN }}
+          SERVER_NAME:    ${{ secrets.SERVER_NAME }}
+          ADMIN_EMAIL:    ${{ secrets.ADMIN_EMAIL }}
+        run: |
+          scp deploy.sh root@${{ secrets.HOST }}:/tmp/deploy.sh
+          ssh root@${{ secrets.HOST }} \\
+            "ADMIN_PASSWORD='$ADMIN_PASSWORD' \\
+             ADMIN_TOKEN='$ADMIN_TOKEN' \\
+             SERVER_NAME='$SERVER_NAME' \\
+             ADMIN_EMAIL='$ADMIN_EMAIL' \\
+             bash /tmp/deploy.sh"
+          ssh root@${{ secrets.HOST }} "rm /tmp/deploy.sh"

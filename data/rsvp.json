@@ -1,0 +1,18 @@
+{
+  "rsvps": [
+    {
+      "id": "mp5dbqc508f6",
+      "name": "samo",
+      "attending": true,
+      "videoId": null,
+      "timestamp": "2026-05-14T10:51:21.749Z"
+    },
+    {
+      "id": "mp5dcg2kb523",
+      "name": "hey",
+      "attending": false,
+      "videoId": null,
+      "timestamp": "2026-05-14T10:51:55.100Z"
+    }
+  ]
+}
